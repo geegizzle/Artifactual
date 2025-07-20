@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artifactual - Social Network</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="logo">Artifactual</div>
+    <div class="search-bar">
+      <input type="text" placeholder="Search Artifactual...">
+    </div>
+    <div class="nav-icons">
+      <span>Home</span>
+      <span>Friends</span>
+      <span>Profile</span>
+    </div>
+  </header>
+
+  <div class="auth-box">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <input type="file" id="profilePic" accept="image/*">
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="logIn()">Log In</button>
+    <button onclick="logOut()">Log Out</button>
+    <p id="auth-status"></p>
+    <img id="uploadedProfilePic" style="display:none; max-width:100px; border-radius:50%;" />
+  </div>
+
+  <div class="main-wrapper">
+    <aside class="sidebar-left">
+      <ul>
+        <li>News Feed</li>
+        <li>Messages</li>
+        <li>Groups</li>
+      </ul>
+    </aside>
+
+    <main class="feed-container">
+      <section class="post-box">
+        <textarea id="postInput" rows="3" placeholder="What's on your mind?"></textarea>
+        <div>
+          <button id="postBtn">Post</button>
+          <button id="speakBtn">🎙️ Speak</button>
+          <button id="generateImageBtn">🖼️ AI Image</button>
+        </div>
+        <div id="imagePreview"></div>
+      </section>
+      <section id="feed" class="feed"></section>
+    </main>
+
+    <aside class="sidebar-right">
+      <h3>Contacts</h3>
+      <ul>
+        <li>Jane Doe</li>
+        <li>John Smith</li>
+        <li>Alice Johnson</li>
+      </ul>
+    </aside>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const storage = firebase.storage();
+
+    const status = document.getElementById('auth-status');
+    const profilePicInput = document.getElementById('profilePic');
+    const uploadedProfilePic = document.getElementById('uploadedProfilePic');
+
+    function signUp() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const file = profilePicInput.files[0];
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(userCredential => {
+          const user = userCredential.user;
+          if (file) {
+            const storageRef = storage.ref(`profilePictures/${user.uid}`);
+            storageRef.put(file).then(() => {
+              storageRef.getDownloadURL().then(url => {
+                uploadedProfilePic.src = url;
+                uploadedProfilePic.style.display = 'block';
+                status.textContent = `Signed up as ${user.email}`;
+              });
+            });
+          } else {
+            status.textContent = `Signed up as ${user.email}`;
+          }
+        })
+        .catch(error => status.textContent = error.message);
+    }
+
+    function logIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then(userCredential => {
+          const user = userCredential.user;
+          const storageRef = storage.ref(`profilePictures/${user.uid}`);
+          storageRef.getDownloadURL().then(url => {
+            uploadedProfilePic.src = url;
+            uploadedProfilePic.style.display = 'block';
+          }).catch(() => {
+            uploadedProfilePic.style.display = 'none';
+          });
+          status.textContent = `Logged in as ${user.email}`;
+        })
+        .catch(error => status.textContent = error.message);
+    }
+
+    function logOut() {
+      auth.signOut()
+        .then(() => {
+          status.textContent = "Logged out.";
+          uploadedProfilePic.style.display = 'none';
+        })
+        .catch(error => status.textContent = error.message);
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        const storageRef = storage.ref(`profilePictures/${user.uid}`);
+        storageRef.getDownloadURL().then(url => {
+          uploadedProfilePic.src = url;
+          uploadedProfilePic.style.display = 'block';
+        }).catch(() => {
+          uploadedProfilePic.style.display = 'none';
+        });
+        status.textContent = `Logged in as ${user.email}`;
+      } else {
+        status.textContent = "Not logged in.";
+      }
+    });
+
+    document.getElementById('speakBtn').addEventListener('click', () => {
+      const text = document.getElementById('postInput').value;
+      if (!text) return;
+      const utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    });
+
+    document.getElementById('generateImageBtn').addEventListener('click', () => {
+      const prompt = document.getElementById('postInput').value.trim();
+      const preview = document.getElementById('imagePreview');
+      preview.innerHTML = '';
+      if (!prompt) return;
+      const img = document.createElement('img');
+      img.src = `https://via.placeholder.com/512x256.png?text=${encodeURIComponent(prompt)}`;
+      img.alt = "AI-generated preview";
+      img.style = "margin-top: 10px; max-width: 100%; border-radius: 8px;";
+      preview.appendChild(img);
+    });
+  </script>
+
+  <script src="script.js"></script>
+</body>
+</html>
